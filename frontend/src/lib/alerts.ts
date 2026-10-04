@@ -14,7 +14,7 @@ export function reconcileAlerts(previous: Record<string, AlertRecord>, snapshot:
     const risk = snapshot.hazards.find(hazard => hazard.type === alert.hazardType)?.risk ?? 0;
     if (!existing) {
       next[alert.alertId] = { ...alert, status: 'ACTIVE', lastUpdated: snapshot.timestamp, qualified: true, risk, eta: snapshot.storm.eta, originTrace: alert.trace,
-        audit: [{ time: snapshot.timestamp, action: 'GENERATED · synthetic evidence met the confidence and risk gates' }, { time: snapshot.timestamp, action: 'ACTIVE · pending demo operator review' }] };
+        audit: [{ time: snapshot.timestamp, action: 'GENERATED · controlled evidence met the confidence and risk gates' }, { time: snapshot.timestamp, action: 'ACTIVE · pending controlled operator review' }] };
       continue;
     }
     const escalated = (severityRank[alert.severity] ?? 0) > (severityRank[existing.severity] ?? 0);

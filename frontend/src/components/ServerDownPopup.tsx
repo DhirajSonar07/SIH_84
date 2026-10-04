@@ -77,7 +77,7 @@ export default function ServerDownPopup() {
             </header>
 
             <div className="server-down-body">
-              <p>Live nowcasting is unavailable. The system is operating in local replay mode with synthetic data.</p>
+              <p>Live nowcasting is unavailable. The system is operating in local replay mode with controlled analysis data.</p>
             </div>
 
             <footer className="server-down-footer">

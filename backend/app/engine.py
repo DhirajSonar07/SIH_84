@@ -6,6 +6,7 @@ from time import perf_counter
 
 from shapely.geometry import Point
 
+from .ai_pipeline import PIPELINE
 from .domain import DOMAIN
 from .schemas import (
     AlertAudit,
@@ -20,6 +21,7 @@ from .schemas import (
     HazardForecast,
     HazardState,
     HazardType,
+    InferenceMetadata,
     Metric,
     Mode,
     NowcastState,
@@ -149,6 +151,7 @@ class NowcastEngine:
         _, primary_origin, primary_direction, _, _ = cell_specs[0]
         direction = (primary_direction + parameters.direction - 70) % 360
         now = BASE_TIME + timedelta(minutes=self.minute)
+        generated_at = datetime.now(timezone.utc)
         processing_time = now - timedelta(milliseconds=8)
 
         signal_curve = self._signal_curve(self.minute)
@@ -187,6 +190,17 @@ class NowcastEngine:
         for source, weight in zip(sources, weights):
             source.contribution = round_value(weight * source.signal)
         fusion = FusionState(signal=round_value(fused_signal), agreement=round_value(agreement), confidence=round_value(confidence), quality=round_value(quality), weights=[round_value(weight, 4) for weight in weights])
+        inference = PIPELINE.infer(
+            reflectivity=intensity,
+            satellite_signal=cooling,
+            lightning=lightning,
+            growth=(signal_curve - 0.5) * 20,
+            speed=velocity,
+            direction=direction,
+            quality=quality,
+            agreement=agreement,
+            minute=self.minute,
+        )
 
         state = self._convective_state(fused_signal, confidence, signal_curve)
         longitude, latitude = self._position_from(primary_origin, self.minute, velocity, direction)
@@ -212,7 +226,33 @@ class NowcastEngine:
         elapsed = (perf_counter() - started) * 1000
         stages = [ProcessingStage(name=name, status="COMPLETE", records=len(storm_cells) if name in {"DETECTION", "TRACKING", "HAZARDS", "NOWCAST", "ALERTS"} else 3) for name in ["INGESTION", "QUALITY", "FEATURES", "FUSION", "DETECTION", "TRACKING", "HAZARDS", "NOWCAST", "ALERTS"]]
         performance = PerformanceState(computationMs=round_value(elapsed, 3), frames=3, stages=stages)
-        snapshot = NowcastState(sequence=self.sequence, timestamp=now, observationTime=frame_time, processingTime=processing_time, mode=mode, scenarioId=self.scenario_id, scenarioVersion=SCENARIO_VERSION, engineVersion=ENGINE_VERSION, minute=self.minute, lead=self.lead, sources=sources, storm=storm, stormCells=storm_cells, fusion=fusion, hazards=hazards, alerts=alerts, evidence=evidence, performance=performance, revision=revision, truth=scenario.truth)
+        snapshot = NowcastState(snapshotId=f"SNAP-{self.scenario_id}-{self.sequence:06d}", analysisTimestamp=now, generatedAt=generated_at, sequence=self.sequence, timestamp=now, observationTime=frame_time, processingTime=processing_time, mode=mode, scenarioId=self.scenario_id, scenarioVersion=SCENARIO_VERSION, engineVersion=ENGINE_VERSION, minute=self.minute, lead=self.lead, sources=sources, storm=storm, stormCells=storm_cells, fusion=fusion, hazards=hazards, alerts=alerts, evidence=evidence, performance=performance, revision=revision, truth=scenario.truth, inference=InferenceMetadata(
+            predictionId=f"{self.scenario_id}-{int(self.minute):04d}-{self.sequence}",
+            modelId=PIPELINE.model_id,
+            modelVersion=PIPELINE.version,
+            inputWindow="t-3..t",
+            featuresUsed=["reflectivity", "cloud_cooling_rate", "lightning_density", "growth_rate", "motion", "quality", "source_agreement"],
+            convectiveProbability=inference.convective_probability,
+            modelConfidence=inference.model_confidence,
+            latencyMs=inference.latency_ms,
+            horizonMinutes=self.lead,
+            featureVector={
+                "reflectivityMean": inference.feature_vector.reflectivity_mean,
+                "reflectivityMax": inference.feature_vector.reflectivity_max,
+                "reflectivityGradient": inference.feature_vector.reflectivity_gradient,
+                "cloudTopTemperature": inference.feature_vector.cloud_top_temperature,
+                "cloudCoolingRate": inference.feature_vector.cloud_cooling_rate,
+                "lightningDensity": inference.feature_vector.lightning_density,
+                "lightningGrowth": inference.feature_vector.lightning_growth,
+                "stormGrowthRate": inference.feature_vector.storm_growth_rate,
+                "motionX": inference.feature_vector.motion_x,
+                "motionY": inference.feature_vector.motion_y,
+                "dataQuality": inference.feature_vector.data_quality,
+                "sourceAgreement": inference.feature_vector.source_agreement,
+                "temporalConsistency": inference.feature_vector.temporal_consistency,
+                "spatialConsistency": inference.feature_vector.spatial_consistency,
+            },
+        ))
         self.previous = snapshot
         self.sequence += 1
         return snapshot

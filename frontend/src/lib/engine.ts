@@ -60,7 +60,7 @@ export function compute(request: ProviderRequest): NowcastState {
     { stage: '02 / QUALITY', detail: `Weighted source quality ${total.toFixed(1)}%. Missing inputs reduce confidence; no imputed observations.` },
     { stage: '03 / FEATURE', detail: hazard.evidence.map(item => `${item.feature}: ${item.derivation}`).join(' · ') },
     { stage: '04 / FUSION', detail: `Quality-adjusted weights ${weights.map(value => `${Math.round(value * 100)}%`).join(' / ')}; agreement ${agreement.toFixed(1)}%; fused signal ${signal.toFixed(1)}.` },
-    { stage: '05 / DETECTION & TRACK', detail: `${state}; ${inputs.velocity} km/h at ${inputs.direction}°. Linear synthetic advection, not a meteorological tracking model.` },
+    { stage: '05 / DETECTION & TRACK', detail: `${state}; ${inputs.velocity} km/h at ${inputs.direction}°. Linear controlled advection, not a meteorological tracking model.` },
     { stage: '06 / HAZARD', detail: `${hazard.type} illustrative risk index ${hazard.risk.toFixed(1)}/100; confidence ${hazard.confidence.toFixed(1)}%. Engine heuristic-1.0.` },
     { stage: '07 / DECISION', detail: `Risk >35; confidence ≥${inputs.confidenceThreshold}%. High threshold ${inputs.warningThreshold}. Pending human review; not an official warning.` },
   ], audit: [{ time, action: 'System-generated scenario advisory' }] }));

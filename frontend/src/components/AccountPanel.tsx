@@ -50,7 +50,7 @@ export default function AccountPanel() {
           <div className="account-row">
             <Database size={16} />
             <span>Environment</span>
-            <strong>Demo / Local</strong>
+            <strong>Controlled / Local</strong>
           </div>
           <div className="account-row">
             <CheckCircle size={16} />

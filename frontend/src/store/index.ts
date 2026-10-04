@@ -62,7 +62,7 @@ function commit(snapshot: NowcastState, reason: string, resetJournal = false) {
   let alertJournal = reset ? {} : selectAlertJournal(previous);
   const journalFrames = reset ? frames : frames.filter(frame => frame.minute > previous.observedSnapshot.minute || frame.minute === observedSnapshot.minute);
   for (const frame of journalFrames) alertJournal = reconcileAlerts(alertJournal, frame);
-  if (local && reason.startsWith('Judge changed')) {
+  if (local && reason.startsWith('Scenario parameter changed')) {
     alertJournal = Object.fromEntries(Object.entries(alertJournal).map(([id, record]) => [id, record.qualified ? { ...record,
       audit: [...record.audit, { time: observedSnapshot.timestamp, action: `FORECAST REVISED · ${reason}` }].slice(-80) } : record]));
   }
@@ -82,7 +82,7 @@ function fallback() {
   stopBackend();
   healthCheckService.markOffline('Backend unavailable after recovery attempts');
   useNowcastStore.setState({ connection: 'BACKEND OFFLINE' });
-  useUiStore.setState({ notice: 'Live data paused. Displaying the last valid backend snapshot; no synthetic updates are being generated.' });
+  useUiStore.setState({ notice: 'Live data paused. Displaying the last valid backend snapshot; no controlled updates are being generated.' });
 }
 export const actions = {
   runNowcast(reason = 'New replay observation', resetJournal = false) {
@@ -124,7 +124,7 @@ export const actions = {
     const interventions = [...state.interventions.filter(event => event.minute < state.minute), { minute: state.minute, parameters }];
     useScenarioStore.setState({ mode: 'SIMULATION', parameters, interventions });
     useNowcastStore.setState({ connection: 'LOCAL SIMULATION' });
-    actions.runNowcast(`Judge changed ${key} to ${value}`);
+    actions.runNowcast(`Scenario parameter changed ${key} to ${value}`);
   },
   async setMode(mode: Mode) {
     const previousMode = useScenarioStore.getState().mode;
@@ -155,7 +155,7 @@ export const actions = {
     const record = journal[alertId];
     if (!record || ['RESOLVED', 'EXPIRED'].includes(record.status) || (!resolve && record.status === 'ACKNOWLEDGED')) return;
     const time = current.observedSnapshot.timestamp;
-    const event = { time, action: `${resolve ? 'RESOLVED' : 'ACKNOWLEDGED'} · demo operator review; not an official warning` };
+    const event = { time, action: `${resolve ? 'RESOLVED' : 'ACKNOWLEDGED'} · controlled operator review; not an official warning` };
     const next: AlertRecord = { ...record, status: resolve ? 'RESOLVED' : 'ACKNOWLEDGED', lastUpdated: time, audit: [...record.audit, event].slice(-80) };
     useNowcastStore.setState({ alertJournal: { ...journal, [alertId]: next }, audit: [...current.audit, event].slice(-200) });
   },

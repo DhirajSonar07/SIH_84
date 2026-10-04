@@ -12,7 +12,7 @@
 NOVEXA NOWCAST is an advanced convective-scale early warning platform. The system operates on a strictly decoupled contract between the operational Command Center / Scenario Lab and the Python FastAPI backend engine.
 
 - **Truthful Observability**: The frontend detects real connection health via standard `/api/health` and `/api/ready` probes.
-- **Fail-Safe Operation**: In the event of backend unavailability, the frontend degrades gracefully to deterministic synthetic replay while clearly marking all data as synthetic.
+- **Fail-Safe Operation**: In the event of backend unavailability, the frontend freezes the last authoritative snapshot and marks the system offline; controlled replay remains available only in Scenario Lab.
 - **Unified Schema**: Both REST snapshots and WebSocket continuous frames share the canonical `NowcastState` schema.
 
 ---
@@ -28,7 +28,7 @@ Basic service liveness check.
   "status": "ok",
   "backendVersion": "NOVEXA-BACKEND-1.0",
   "engineVersion": "1.0.0",
-  "mode": "SYNTHETIC_REPLAY"
+  "mode": "CONTROLLED_ANALYSIS"
 }
 ```
 
@@ -59,6 +59,11 @@ responses for clients that pin the v1 API namespace.
 ### `GET /api/nowcast/current`
 Returns the authoritative nowcast state snapshot computed by the backend engine at the current minute.
 
+Every authoritative snapshot includes `snapshotId`, `scenarioId`,
+`analysisTimestamp`, `generatedAt`, `sequence`, and `mode`. The WebSocket
+advances the controlled analytical minute while replay is running; clients
+must use `sequence` and reject duplicates or out-of-order frames.
+
 ### `GET /api/nowcast/{timestamp}`
 Returns the nowcast state at a historical ISO timestamp or relative scenario minute (e.g. `45`).
 
@@ -78,6 +83,34 @@ Returns the nowcast state at a historical ISO timestamp or relative scenario min
 - `sources`: Physical sensor status (`SourceStatus[]`)
 - `alerts`: Active early-warning alerts (`AlertRecord[]`)
 - `forecast`: Temporal forecast trend vectors (`ForecastPoint[]`)
+
+The v1 alias `GET /api/v1/nowcast` returns the current authoritative snapshot.
+
+### `GET /api/v1/performance`
+Returns measured pipeline telemetry for the current snapshot:
+
+- `pipelineLatencyMs`: elapsed backend snapshot computation
+- `inferenceLatencyMs`: measured model inference duration
+- `requestLatencyMs`: endpoint-side request measurement
+- `activeCells` and `processedCells`
+- `throughputCellsPerSecond`: processed cells divided by measured pipeline seconds
+- `pipelineStatus`
+
+Per-stage timings are explicitly reported as not instrumented rather than being
+filled with fabricated values.
+
+### `GET /api/v1/data-quality`
+Returns quality-weighted completeness, freshness, spatial coverage, source
+availability, and source agreement for the current controlled snapshot.
+
+### `GET /api/v1/validation`
+Runs deterministic controlled checks across all configured scenarios. The
+response reports scenario repeatability, track continuity, hazard consistency,
+spatial consistency, forecast check counts, and a combined consistency score.
+These are engineering consistency metrics, not operational forecast accuracy.
+
+The v1 aliases `/api/v1/storms`, `/api/v1/hazards`, `/api/v1/alerts`, and
+`/api/v1/scenarios` expose the corresponding state collections.
 
 ### `GET /api/map/state` (or `/api/v1/map/state`)
 Returns full Maharashtra state-wide GIS features, storm cells, risk zones, and district/regional aggregates.
@@ -151,6 +184,15 @@ Real-time ingestion status of primary observing networks:
 2. `INSAT` — INSAT-3D/3DR (Thermal Infrared, Water Vapor Channel)
 3. `LIGHTNING` — Lightning Detection Network (IC & CG Flash Density)
 4. `NWP` — Numerical Weather Prediction Background (WRF / NCUM 3km)
+
+### `GET /api/v1/ai/status`
+Returns the active baseline inference model registry, pipeline component
+readiness, and the latest snapshot inference metadata.
+
+### `GET /api/v1/models`
+Returns model identifiers, versions, input features, status, and calibration
+disclaimers. The current implementation uses deterministic explainable
+baselines; it does not claim independent operational skill.
 
 ### `GET /api/alerts` & `GET /api/alerts/{alert_id}`
 Query bulletin records filtered by optional `?status=OPEN|DELIVERED|ACKNOWLEDGED` and `?severity=WATCH|WARNING|CRITICAL`.

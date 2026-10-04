@@ -170,6 +170,36 @@ class PerformanceState(BaseModel):
     stages: list[ProcessingStage] = Field(max_length=32)
 
 
+class FeatureVector(BaseModel):
+    reflectivityMean: float
+    reflectivityMax: float
+    reflectivityGradient: float
+    cloudTopTemperature: float
+    cloudCoolingRate: float
+    lightningDensity: float
+    lightningGrowth: float
+    stormGrowthRate: float
+    motionX: float
+    motionY: float
+    dataQuality: float = Field(ge=0, le=100)
+    sourceAgreement: float = Field(ge=0, le=100)
+    temporalConsistency: float = Field(ge=0, le=100)
+    spatialConsistency: float = Field(ge=0, le=100)
+
+
+class InferenceMetadata(BaseModel):
+    predictionId: str
+    modelId: str
+    modelVersion: str
+    inputWindow: str
+    featuresUsed: list[str]
+    convectiveProbability: float = Field(ge=0, le=100)
+    modelConfidence: float = Field(ge=0, le=100)
+    latencyMs: float = Field(ge=0)
+    horizonMinutes: float = Field(ge=0, le=360)
+    featureVector: FeatureVector
+
+
 class ForecastRevision(BaseModel):
     previousEta: float | None = Field(default=None, ge=0)
     eta: float | None = Field(default=None, ge=0)
@@ -184,6 +214,9 @@ class NowcastState(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     schemaVersion: str = "1.0"
+    snapshotId: str
+    analysisTimestamp: datetime
+    generatedAt: datetime
     sequence: int = Field(ge=0)
     timestamp: datetime
     observationTime: datetime
@@ -204,6 +237,7 @@ class NowcastState(BaseModel):
     revision: ForecastRevision | None = None
     truth: bool
     stormCells: list[StormCell] = Field(default_factory=list)
+    inference: InferenceMetadata | None = None
 
     @model_validator(mode="after")
     def validate_snapshot(self) -> "NowcastState":

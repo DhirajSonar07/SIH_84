@@ -11,7 +11,9 @@ from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnec
 from fastapi.middleware.cors import CORSMiddleware
 
 from .domain import DOMAIN
+from .ai_pipeline import model_registry, pipeline_status as ai_pipeline_status
 from .engine import ENGINE_VERSION, SCENARIOS, NowcastEngine, scenario_parameters
+from .validation import controlled_validation, data_quality, performance as performance_telemetry
 from .schemas import (
     HealthResponse,
     MapAlert,
@@ -34,7 +36,7 @@ from .schemas import (
 
 BACKEND_VERSION = "NOVEXA-BACKEND-1.0"
 engine = NowcastEngine()
-replay_running = False
+replay_running = True
 
 
 def utc_now() -> datetime:
@@ -63,17 +65,43 @@ def not_found(code: str, message: str) -> HTTPException:
 @app.get("/api/health", response_model=HealthResponse)
 @app.get("/api/v1/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(status="ok", backendVersion=BACKEND_VERSION, engineVersion=ENGINE_VERSION, mode="SYNTHETIC_REPLAY")
+    return HealthResponse(status="ok", backendVersion=BACKEND_VERSION, engineVersion=ENGINE_VERSION, mode="CONTROLLED_ANALYSIS")
 
 
 @app.get("/api/ready", response_model=ReadyResponse)
 @app.get("/api/v1/ready", response_model=ReadyResponse)
 def ready() -> ReadyResponse:
-    checks = {"engine_initialized": True, "scenario_engine_ready": bool(SCENARIOS), "configuration_loaded": True, "models_ready": True, "data_providers_ready": True}
+    checks = {
+        "engine_initialized": True,
+        "scenario_engine_ready": bool(SCENARIOS),
+        "configuration_loaded": True,
+        "models_ready": all(item["status"] == "READY" for item in model_registry()),
+        "feature_pipeline_ready": all(item["status"] == "READY" for item in ai_pipeline_status()),
+        "data_providers_ready": True,
+    }
     return ReadyResponse(status="ready" if all(checks.values()) else "not_ready", checks=checks)
 
 
+@app.get("/api/ai/status")
+@app.get("/api/v1/ai/status")
+def ai_status() -> dict[str, Any]:
+    snapshot = engine.current()
+    return {
+        "status": "ready",
+        "models": model_registry(),
+        "pipeline": ai_pipeline_status(),
+        "lastInference": snapshot.inference.model_dump(mode="json") if snapshot.inference else None,
+    }
+
+
+@app.get("/api/models")
+@app.get("/api/v1/models")
+def models() -> list[dict[str, object]]:
+    return model_registry()
+
+
 @app.get("/api/nowcast/current", response_model=NowcastState)
+@app.get("/api/v1/nowcast", response_model=NowcastState)
 def current_nowcast() -> NowcastState:
     return engine.current()
 
@@ -139,6 +167,7 @@ def analysis_domain() -> dict[str, Any]:
 
 
 @app.get("/api/storms")
+@app.get("/api/v1/storms")
 def storms() -> list[dict[str, Any]]:
     snapshot = engine.current()
     return [cell.model_dump(mode="json") for cell in (snapshot.stormCells or [snapshot.storm])]
@@ -153,6 +182,7 @@ def storm(storm_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/hazards")
+@app.get("/api/v1/hazards")
 def hazards() -> list[dict[str, Any]]:
     return [hazard.model_dump(mode="json") for hazard in engine.current().hazards]
 
@@ -172,6 +202,7 @@ def source_status() -> list[dict[str, Any]]:
 
 
 @app.get("/api/alerts")
+@app.get("/api/v1/alerts")
 def alerts(status: str | None = Query(default=None), severity: str | None = Query(default=None)) -> list[dict[str, Any]]:
     result = engine.current().alerts
     if status:
@@ -190,6 +221,7 @@ def alert(alert_id: str) -> dict[str, Any]:
 
 
 @app.get("/api/scenarios", response_model=list[Scenario])
+@app.get("/api/v1/scenarios", response_model=list[Scenario])
 def scenarios() -> list[Scenario]:
     return list(SCENARIOS.values())
 
@@ -246,9 +278,19 @@ def update_replay_parameters(parameters: ScenarioParameters) -> NowcastState:
 
 
 @app.get("/api/performance")
+@app.get("/api/v1/performance")
 def performance() -> dict[str, Any]:
-    snapshot = engine.current()
-    return snapshot.performance.model_dump(mode="json")
+    return performance_telemetry(engine.current())
+
+
+@app.get("/api/v1/validation")
+def validation() -> dict[str, Any]:
+    return controlled_validation()
+
+
+@app.get("/api/v1/data-quality")
+def current_data_quality() -> dict[str, Any]:
+    return data_quality(engine.current())
 
 
 @app.get("/api/pipeline/status")

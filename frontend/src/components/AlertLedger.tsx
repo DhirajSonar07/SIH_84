@@ -19,7 +19,7 @@ export default function AlertLedger({ compact = false }: { compact?: boolean }) 
   function exportJournal() {
     const snapshot = useNowcastStore.getState().observedSnapshot;
     const blob = new Blob([JSON.stringify({ schemaVersion:'1.0', scenarioId:snapshot.scenarioId, observationTime:snapshot.observationTime,
-      disclaimer:'Demo review journal. Synthetic observations, unvalidated risk indices and no official warnings.', alerts:records }, null, 2)], { type:'application/json' });
+      disclaimer:'Controlled review journal. Controlled scenario observations, unvalidated risk indices and no official warnings.', alerts:records }, null, 2)], { type:'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${snapshot.scenarioId}-alert-journal.json`; anchor.click(); URL.revokeObjectURL(url);
   }

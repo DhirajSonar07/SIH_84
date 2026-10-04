@@ -19,13 +19,25 @@ const hazard = z.object({ type: hazardType, risk: percentage, confidence: percen
 const alert = z.object({ alertId: z.string().min(1), scenarioId: z.string().min(1), stormCellId: z.string().min(1), hazardType, timestamp, severity: z.string().min(1), confidence: percentage,
   status: z.enum(['GENERATED', 'ACTIVE', 'ACKNOWLEDGED', 'ESCALATED', 'RESOLVED', 'EXPIRED']), trace: z.array(trace).min(1).max(32), audit: z.array(z.object({ time: timestamp, action: z.string() })).max(200) });
 const revision = z.object({ previousEta: nonnegative.nullable(), eta: nonnegative.nullable(), previousRisk: percentage, risk: percentage, previousConfidence: percentage, confidence: percentage, reason: z.string() });
+const inference = z.object({
+  predictionId: z.string().min(1), modelId: z.string().min(1), modelVersion: z.string().min(1),
+  inputWindow: z.string().min(1), featuresUsed: z.array(z.string().min(1)),
+  convectiveProbability: percentage, modelConfidence: percentage, latencyMs: nonnegative,
+  horizonMinutes: nonnegative.max(360),
+  featureVector: z.object({
+    reflectivityMean: z.number(), reflectivityMax: z.number(), reflectivityGradient: z.number(),
+    cloudTopTemperature: z.number(), cloudCoolingRate: z.number(), lightningDensity: z.number(),
+    lightningGrowth: z.number(), stormGrowthRate: z.number(), motionX: z.number(), motionY: z.number(),
+    dataQuality: percentage, sourceAgreement: percentage, temporalConsistency: percentage, spatialConsistency: percentage,
+  }),
+});
 export const nowcastSchema = z.object({
-  schemaVersion: z.literal('1.0'), sequence: z.number().int().nonnegative(), timestamp, observationTime: timestamp, processingTime: timestamp,
+  schemaVersion: z.literal('1.0'), snapshotId: z.string().min(1).optional(), analysisTimestamp: timestamp.optional(), generatedAt: timestamp.optional(), sequence: z.number().int().nonnegative(), timestamp, observationTime: timestamp, processingTime: timestamp,
   mode: z.enum(['REPLAY', 'SIMULATION', 'BACKEND']), scenarioId: z.string().min(1), scenarioVersion: z.string().min(1), engineVersion: z.string().min(1), minute: nonnegative, lead: nonnegative.max(360),
   sources: z.array(source).length(3), storm, stormCells: z.array(storm).max(128).optional(), fusion: z.object({ signal: percentage, agreement: percentage, confidence: percentage, quality: percentage, weights: z.array(z.number().min(0).max(1)).length(3) }),
   hazards: z.array(hazard).length(4), alerts: z.array(alert).max(200), evidence: z.array(evidence).max(100),
   performance: z.object({ computationMs: nonnegative, frames: z.number().int().nonnegative(), stages: z.array(z.object({ name: z.string().min(1), status: z.string(), records: z.number().int().nonnegative() })).max(32) }),
-  revision: revision.nullable(), truth: z.boolean(),
+  revision: revision.nullable(), truth: z.boolean(), inference: inference.nullable().optional(),
 }).superRefine((snapshot, context) => {
   const names = ['DWR RADAR', 'INSAT-3DR', 'LIGHTNING'];
   if (snapshot.sources.some((item, index) => item.name !== names[index])) context.addIssue({ code: 'custom', path: ['sources'], message: 'Source order must be DWR, INSAT, LIGHTNING' });

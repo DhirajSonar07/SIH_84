@@ -12,6 +12,7 @@ import ServerDownPopup from './ServerDownPopup';
 import useAlerts from '../features/useAlerts';
 import { isOpenAlert } from '../lib/alerts';
 import type { Mode } from '../types/nowcast';
+import LiveClock from './LiveClock';
 
 const navigation = [
   { to: '/', label: 'Command Center', icon: LayoutDashboard },
@@ -100,16 +101,18 @@ export default function Shell() {
               <option value="BACKEND">LIVE / API</option>
             </select>
           </div>
-          <div className="header-clock">
-            <span className="label">{mode === 'BACKEND' ? 'OBSERVATION · LIVE' : mode === 'SIMULATION' ? 'SIMULATION · SYNTHETIC' : 'REPLAY · SYNTHETIC'}</span>
+          <div className="header-analysis-clock">
+            <span className="label">{mode === 'BACKEND' ? 'ANALYSIS · BACKEND' : mode === 'SIMULATION' ? 'ANALYSIS · CONTROLLED' : 'ANALYSIS · REPLAY'}</span>
             <strong>{time(snapshot.observationTime)}<small> IST</small></strong>
+            <small>T+{Math.floor(snapshot.minute).toString().padStart(3, '0')} MIN</small>
           </div>
+          <LiveClock />
           <ConnectionStatus />
           <div className="header-actions">
             <button className="primary-button" onClick={() => navigate('/scenarios')}>
               <Play size={13} fill="currentColor" />Open Scenario Lab
             </button>
-            <button className="icon-button" aria-label="Reset demo" onClick={actions.reset}>
+            <button className="icon-button" aria-label="Reset scenario" onClick={actions.reset}>
               <RotateCcw size={13} />
             </button>
             <button className="alert-count" onClick={() => actions.inspect('alerts')}>

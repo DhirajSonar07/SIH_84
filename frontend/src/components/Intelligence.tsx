@@ -21,6 +21,20 @@ export function Fusion() {
   return <Panel title="MULTI-SOURCE FUSION" action={<InspectButton onClick={() => actions.inspect('fusion')}>Explain</InspectButton>} className="fusion-panel"><div className="fusion-flow">{['DWR','INSAT','LGT'].map((name,index) => <div key={name}><span>{name}</span><strong>{number(snapshot.sources[index].contribution)}<small>%</small></strong><div className="progress-track"><div style={{ width:`${snapshot.sources[index].contribution}%` }}/></div></div>)}<ArrowRight size={16}/><div className="fusion-result"><span>FUSED SIGNAL</span><strong>{number(snapshot.fusion.signal)}<small>/100</small></strong></div></div><div className="fusion-footer"><span>Source agreement <strong className={snapshot.fusion.agreement < 65 ? 'amber-text' : 'cyan-text'}>{number(snapshot.fusion.agreement)}%</strong></span><span>Confidence <strong>{number(snapshot.fusion.confidence)}%</strong></span></div><small className="muted">Scenario contributions · uncalibrated heuristic</small></Panel>;
 }
 
+export function AIInference() {
+  const inference = useNowcast().inference;
+  if (!inference) return null;
+  return <Panel title="AI INFERENCE" action={<Badge tone="green">MODEL READY</Badge>}>
+    <div className="storm-metric-grid">
+      <Metric label="CONVECTIVE PROBABILITY" value={number(inference.convectiveProbability)} unit="%" />
+      <Metric label="MODEL CONFIDENCE" value={number(inference.modelConfidence)} unit="%" />
+      <Metric label="INFERENCE LATENCY" value={number(inference.latencyMs, 2)} unit="ms" />
+      <Metric label="SOURCE AGREEMENT" value={number(inference.featureVector.sourceAgreement)} unit="%" />
+    </div>
+    <p className="muted">{inference.modelId} · {inference.modelVersion} · features: {inference.featuresUsed.join(', ')}</p>
+  </Panel>;
+}
+
 export function Threat() {
   const snapshot = useNowcast();
   const threshold = useScenarioStore(state => state.parameters.confidenceThreshold);

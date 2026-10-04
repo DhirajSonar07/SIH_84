@@ -21,8 +21,38 @@ def test_current_snapshot_is_frontend_compatible() -> None:
 
     assert response.status_code == 200
     assert body["schemaVersion"] == "1.0"
+    assert body["snapshotId"].startswith("SNAP-")
+    assert body["analysisTimestamp"] == body["timestamp"]
+    assert body["generatedAt"]
     assert len(body["sources"]) == 3
     assert len(body["hazards"]) == 4
+    assert body["inference"]["modelId"] == "convective-baseline-v1"
+    assert body["inference"]["featureVector"]["sourceAgreement"] >= 0
+
+
+def test_ai_status_exposes_real_pipeline_components() -> None:
+    response = client.get("/api/v1/ai/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ready"
+    assert {item["name"] for item in body["pipeline"]} >= {"Feature Engine", "Cell Detector", "Nowcast Model"}
+    assert all(item["status"] == "READY" for item in body["models"])
+
+
+def test_integrity_telemetry_and_validation_endpoints() -> None:
+    performance = client.get("/api/v1/performance")
+    quality = client.get("/api/v1/data-quality")
+    validation = client.get("/api/v1/validation")
+
+    assert performance.status_code == 200
+    assert performance.json()["pipelineLatencyMs"] >= 0
+    assert performance.json()["activeCells"] >= 1
+    assert performance.json()["throughputCellsPerSecond"] > 0
+    assert quality.json()["overall"] >= 0
+    assert quality.json()["overall"] <= 100
+    assert validation.json()["scenariosEvaluated"] == 8
+    assert validation.json()["forecastChecks"] > 0
+    assert validation.json()["overall"] >= 0
 
 
 def test_map_state_contract_is_maharashtra_wide() -> None:

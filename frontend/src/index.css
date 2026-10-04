@@ -59,6 +59,10 @@ h1,h2,h3,h4,p{margin:0}
 .header-clock .label{font-size:8px;margin-bottom:5px}
 .header-clock strong{font-family:var(--font-mono);font-size:18px;font-weight:500;white-space:nowrap}
 .header-clock small{font-family:var(--font-sans);font-size:10px;color:#97aabe}
+.header-analysis-clock{display:flex;flex-direction:column;gap:4px;min-width:112px}
+.header-analysis-clock .label{font-size:8px;margin-bottom:1px}
+.header-analysis-clock strong{font-family:var(--font-mono);font-size:15px;font-weight:500;white-space:nowrap}
+.header-analysis-clock small{font-family:var(--font-sans);font-size:9px;color:#97aabe}
 .header-actions{display:flex;gap:12px;align-items:center}
 .primary-button{display:inline-flex;align-items:center;justify-content:center;gap:7px;background:#47bfb8;color:#071d22;border:1px solid #69d9cc;font-weight:600;font-size:12px;padding:9px 13px;border-radius:3px;white-space:nowrap}
 .primary-button:hover:not(:disabled){background:#70d8ce;color:#071d22}
@@ -624,4 +628,3 @@ tr:last-child td{border-bottom:none}
 .diagnostic-item{background:#11202e;border:1px solid #223a4d;padding:10px 12px;border-radius:4px}
 .diagnostic-item span{display:block;font-size:9px;color:#7898ac;margin-bottom:4px}
 .diagnostic-item strong{font:12px var(--font-mono)}
-

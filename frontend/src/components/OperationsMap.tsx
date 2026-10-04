@@ -5,7 +5,7 @@ import type { GeoJSONSource, Map as MapInstance } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Crosshair, Layers, Maximize2, Minus, Plus, Navigation, Search, X, MapPin } from 'lucide-react';
 import { stormGeography } from '../lib/geography';
-import { districtFeatures, districtSearch, majorCities, maharashtraBounds, maharashtraBoundary } from '../lib/maharashtra';
+import { districtFeatures, districtSearch, getDistrictLabel, majorCities, maharashtraBounds, maharashtraBoundary } from '../lib/maharashtra';
 import useNowcast from '../features/useNowcast';
 import { actions, useMapStore } from '../store';
 import type { BackendMapState } from '../types/nowcast';
@@ -52,7 +52,84 @@ export default function OperationsMap({ tall = false }: { tall?: boolean }) {
         instance.addLayer({ id: 'district-fill', type: 'fill', source: 'maharashtra-admin', filter: ['==', ['get', 'kind'], 'district'], paint: { 'fill-color': '#18313b', 'fill-opacity': 0.28 } });
         instance.addLayer({ id: 'district-line', type: 'line', source: 'maharashtra-admin', filter: ['==', ['get', 'kind'], 'district'], paint: { 'line-color': '#526d78', 'line-width': 0.7, 'line-opacity': 0.85 } });
         instance.addLayer({ id: 'state-line', type: 'line', source: 'maharashtra-admin', filter: ['==', ['get', 'kind'], 'state'], paint: { 'line-color': '#76c9c2', 'line-width': 2, 'line-opacity': 0.9 } });
-        instance.addLayer({ id: 'district-labels', type: 'symbol', source: 'maharashtra-admin', minzoom: 6, filter: ['==', ['get', 'kind'], 'district'], layout: { 'text-field': ['get', 'name'], 'text-size': ['interpolate', ['linear'], ['zoom'], 6, 8, 9, 11], 'text-allow-overlap': false }, paint: { 'text-color': '#b8ccd1', 'text-halo-color': '#10202b', 'text-halo-width': 1.2 } });
+        instance.addLayer({
+          id: 'district-labels',
+          type: 'symbol',
+          source: 'maharashtra-admin',
+          minzoom: 6,
+          maxzoom: 7.5,
+          filter: ['==', ['get', 'kind'], 'district'],
+          layout: {
+            'text-field': [
+              'case',
+              ['==', ['get', 'name'], 'Pune'], 'PUNE',
+              ['==', ['get', 'name'], 'Nagpur'], 'NAG',
+              ['==', ['get', 'name'], 'Nashik'], 'NASH',
+              ['==', ['get', 'name'], 'Aurangabad'], 'AUR',
+              ['==', ['get', 'name'], 'Kolhapur'], 'KOL',
+              ['==', ['get', 'name'], 'Solapur'], 'SOL',
+              ['==', ['get', 'name'], 'Amravati'], 'AMR',
+              ['==', ['get', 'name'], 'Nanded'], 'NDD',
+              ['==', ['get', 'name'], 'Sangli'], 'SAN',
+              ['==', ['get', 'name'], 'Satara'], 'SAT',
+              ['==', ['get', 'name'], 'Latur'], 'LAT',
+              ['==', ['get', 'name'], 'Jalgaon'], 'JAL',
+              ['==', ['get', 'name'], 'Dhule'], 'DHL',
+              ['==', ['get', 'name'], 'Akola'], 'AKL',
+              ['==', ['get', 'name'], 'Buldhana'], 'BLD',
+              ['==', ['get', 'name'], 'Washim'], 'WSH',
+              ['==', ['get', 'name'], 'Yavatmal'], 'YAV',
+              ['==', ['get', 'name'], 'Chandrapur'], 'CHD',
+              ['==', ['get', 'name'], 'Gondia'], 'GON',
+              ['==', ['get', 'name'], 'Bhandara'], 'BND',
+              ['==', ['get', 'name'], 'Wardha'], 'WRD',
+              ['==', ['get', 'name'], 'Gadchiroli'], 'GAD',
+              ['==', ['get', 'name'], 'Raigad'], 'RAI',
+              ['==', ['get', 'name'], 'Ratnagiri'], 'RAT',
+              ['==', ['get', 'name'], 'Sindhudurg'], 'SIN',
+              ['==', ['get', 'name'], 'Thane'], 'THN',
+              ['==', ['get', 'name'], 'Mumbai'], 'MUM',
+              ['==', ['get', 'name'], 'Mumbai Suburban'], 'MUM-S',
+              ['==', ['get', 'name'], 'Palghar'], 'PLG',
+              ['==', ['get', 'name'], 'Ahmednagar'], 'AHM',
+              ['==', ['get', 'name'], 'Jalna'], 'JLN',
+              ['==', ['get', 'name'], 'Parbhani'], 'PRB',
+              ['==', ['get', 'name'], 'Hingoli'], 'HIN',
+              ['==', ['get', 'name'], 'Beed'], 'BED',
+              ['==', ['get', 'name'], 'Osmanabad'], 'OSM',
+              ['==', ['get', 'name'], 'Nandurbar'], 'NDB',
+              ['slice', ['get', 'name'], 0, 3]
+            ],
+            'text-size': 8,
+            'text-allow-overlap': false,
+            'text-padding': 2,
+            'text-transform': 'uppercase',
+            'text-letter-spacing': 0.5,
+          },
+          paint: {
+            'text-color': '#b8ccd1',
+            'text-halo-color': '#10202b',
+            'text-halo-width': 1.2,
+          }
+        });
+        instance.addLayer({
+          id: 'district-labels-detailed',
+          type: 'symbol',
+          source: 'maharashtra-admin',
+          minzoom: 7.5,
+          filter: ['==', ['get', 'kind'], 'district'],
+          layout: {
+            'text-field': ['get', 'name'],
+            'text-size': ['interpolate', ['linear'], ['zoom'], 7.5, 10, 9, 12],
+            'text-allow-overlap': false,
+            'text-padding': 2,
+          },
+          paint: {
+            'text-color': '#b8ccd1',
+            'text-halo-color': '#10202b',
+            'text-halo-width': 1.2,
+          }
+        });
         for (const [id, kind, color, opacity] of [['satellite', 'satellite', '#b7c7d5', 0.15], ['uncertainty', 'uncertainty', '#38bfc0', 0.1], ['hazard', 'hazard', '#f4a944', 0.07], ['radar', 'radar', '#f39936', 0.65]] as const) instance.addLayer({ id, type: 'fill', source: 'storm', filter: ['==', ['get', 'kind'], kind], paint: { 'fill-color': id === 'radar' ? ['get', 'color'] : color, 'fill-opacity': id === 'radar' ? ['get', 'opacity'] : opacity } });
         instance.addLayer({ id: 'hazard-outline', type: 'line', source: 'storm', filter: ['==', ['get', 'kind'], 'hazard'], paint: { 'line-color': '#e6ae56', 'line-width': 1, 'line-dasharray': [4, 3], 'line-opacity': 0.8 } });
         instance.addLayer({ id: 'observed', type: 'line', source: 'storm', filter: ['==', ['get', 'kind'], 'observed'], paint: { 'line-color': '#50babc', 'line-width': 2 } });
@@ -75,7 +152,7 @@ export default function OperationsMap({ tall = false }: { tall?: boolean }) {
           element.className = 'cell-label';
           element.textContent = `${cellState.id} ↗`;
           element.onclick = () => actions.inspect('storm', cellState.id);
-          cellMarkers.current.set(cellState.id, new Marker({ element, anchor: 'bottom', offset: [0, -18] }).setLngLat([cellState.longitude, cellState.latitude]).addTo(instance));
+          cellMarkers.current.set(cellState.id, new Marker({ element, anchor: 'bottom', offset: [0, -18] }).setLngLat([cellState.longitude, cellState.latitude]).addTo(instance!));
         });
         instance.on('click', 'core', event => actions.inspect('storm', String(event.features?.[0]?.properties?.cellId ?? snapshot.storm.id)));
         instance.on('click', 'alert', event => actions.inspect('alert', String(event.features?.[0]?.properties?.alertId ?? '')));

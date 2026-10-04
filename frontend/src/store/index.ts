@@ -5,6 +5,7 @@ import SimulationProvider from '../providers/SimulationProvider';
 import ApiProvider from '../providers/ApiProvider';
 import { reconcileAlerts } from '../lib/alerts';
 import { historyPoint, parametersAt, replayFrames } from '../lib/replay';
+import { healthCheckService, type HealthStatus } from '../lib/health';
 import type { AlertRecord, NowcastState, ScenarioParameters, Mode, ScenarioIntervention, StormHistoryPoint, ProviderRequest } from '../types/nowcast';
 const replay = new LocalReplayProvider();
 const simulation = new SimulationProvider();
@@ -14,8 +15,8 @@ const initial = initialFrames[initialFrames.length - 1];
 const initialJournal = initialFrames.reduce<Record<string, AlertRecord>>(reconcileAlerts, {});
 interface ScenarioStore { scenarioId: string; scenarios: typeof scenarios; parameters: ScenarioParameters; initialParameters: ScenarioParameters; interventions: ScenarioIntervention[]; minute: number; lead: number; playing: boolean; speed: number; mode: Mode; }
 export const useScenarioStore = create<ScenarioStore>(() => ({ ...initialRequest, scenarios, initialParameters: { ...defaultParameters }, interventions: [], playing: false, speed: 1, mode: 'REPLAY' }));
-interface NowcastStore { snapshot: NowcastState; observedSnapshot: NowcastState; history: StormHistoryPoint[]; alertJournal: Record<string, AlertRecord>; stableRequest: ProviderRequest; connection: string; audit: { time: string; action: string }[]; }
-export const useNowcastStore = create<NowcastStore>(() => ({ snapshot: initial, observedSnapshot: initial, history: initialFrames.map(historyPoint), alertJournal: initialJournal, stableRequest: initialRequest, connection: 'LOCAL REPLAY', audit: [] }));
+interface NowcastStore { snapshot: NowcastState; observedSnapshot: NowcastState; history: StormHistoryPoint[]; alertJournal: Record<string, AlertRecord>; stableRequest: ProviderRequest; connection: string; healthStatus: HealthStatus; audit: { time: string; action: string }[]; }
+export const useNowcastStore = create<NowcastStore>(() => ({ snapshot: initial, observedSnapshot: initial, history: initialFrames.map(historyPoint), alertJournal: initialJournal, stableRequest: initialRequest, connection: 'LOCAL REPLAY', healthStatus: healthCheckService.getStatus(), audit: [] }));
 const recoveredJournals = new WeakMap<NowcastState, Record<string, AlertRecord>>();
 export function selectAlertJournal(state: NowcastStore): Record<string, AlertRecord> {
   if (state.alertJournal) return state.alertJournal;
@@ -36,7 +37,15 @@ interface UiStore { inspection: { kind: string; id: string } | null; notice: str
 export const useUiStore = create<UiStore>(() => ({ inspection: null, notice: '' }));
 let generation = 0;
 let disconnect: (() => void) | undefined;
-function stopBackend() { generation++; disconnect?.(); disconnect = undefined; }
+let healthUnsubscribe: (() => void) | undefined;
+function stopBackend() {
+  generation++;
+  disconnect?.();
+  disconnect = undefined;
+  healthUnsubscribe?.();
+  healthUnsubscribe = undefined;
+  healthCheckService.stop();
+}
 function restoreLocalRequest() {
   const saved = useNowcastStore.getState().stableRequest;
   useScenarioStore.setState({ ...saved, initialParameters: saved.initialParameters ?? saved.parameters, interventions: saved.interventions ?? [], mode: 'REPLAY', playing: false });
@@ -70,10 +79,10 @@ function commit(snapshot: NowcastState, reason: string, resetJournal = false) {
   });
 }
 function fallback() {
-  stopBackend(); restoreLocalRequest();
-  useNowcastStore.setState({ connection: 'FALLBACK ACTIVE · LOCAL REPLAY' });
-  useUiStore.setState({ notice: 'Backend unavailable after recovery. Last stable local scenario restored; all displayed outputs are synthetic.' });
-  commit(replay.getSnapshot(useScenarioStore.getState()), 'Backend disconnected; local replay fallback', true);
+  stopBackend();
+  healthCheckService.markOffline('Backend unavailable after recovery attempts');
+  useNowcastStore.setState({ connection: 'BACKEND OFFLINE' });
+  useUiStore.setState({ notice: 'Live data paused. Displaying the last valid backend snapshot; no synthetic updates are being generated.' });
 }
 export const actions = {
   runNowcast(reason = 'New replay observation', resetJournal = false) {
@@ -125,6 +134,8 @@ export const actions = {
     useScenarioStore.setState({ mode, playing: false });
     if (mode !== 'BACKEND') { useNowcastStore.setState({ connection: mode === 'REPLAY' ? 'LOCAL REPLAY' : 'LOCAL SIMULATION' }); actions.runNowcast('Provider changed', previousMode === 'BACKEND'); return; }
     useNowcastStore.setState({ connection: 'CONNECTING TO BACKEND' });
+    healthCheckService.start();
+    healthUnsubscribe = healthCheckService.subscribe(status => { if (requestId === generation) useNowcastStore.setState({ healthStatus: status }); });
     const provider = new ApiProvider('/api');
     try {
       const snapshot = await provider.getSnapshot(useScenarioStore.getState());

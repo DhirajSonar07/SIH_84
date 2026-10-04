@@ -4,7 +4,7 @@ import { stormGeography } from '../lib/geography';
 import type { NowcastState } from '../types/nowcast';
 import { actions } from '../store';
 
-type FallbackFeature = Feature<Geometry, Record<string, unknown>>;
+type FallbackFeature = Feature<Geometry, any>;
 const width = 1000;
 const height = 650;
 const padding = 24;

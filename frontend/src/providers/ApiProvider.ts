@@ -1,6 +1,7 @@
 import type { NowcastState, ProviderRequest } from '../types/nowcast';
 import type { NowcastProvider } from './provider';
 import { nowcastSchema } from '../lib/snapshotSchema';
+import { healthCheckService } from '../lib/health';
 export class StaleSnapshotError extends Error {}
 export default class ApiProvider implements NowcastProvider {
   private sequence = -1;
@@ -38,6 +39,7 @@ export default class ApiProvider implements NowcastProvider {
     const clearSocket = () => {
       clearTimeout(openTimer);
       if (socket) { socket.onclose = null; socket.onerror = null; socket.onmessage = null; socket.onopen = null; socket.close(); socket = null; }
+      healthCheckService.setWebSocketStatus('DISCONNECTED');
     };
     const retry = () => {
       if (disposed) return;
@@ -67,7 +69,7 @@ export default class ApiProvider implements NowcastProvider {
         url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
         socket = new WebSocket(url);
         openTimer = setTimeout(retry, 2500);
-        socket.onopen = () => { clearTimeout(openTimer); void recover(); };
+        socket.onopen = () => { clearTimeout(openTimer); healthCheckService.setWebSocketStatus('CONNECTED'); void recover(); };
         socket.onmessage = event => {
           if (disposed || recovering) return;
           try {

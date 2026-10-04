@@ -61,11 +61,13 @@ def not_found(code: str, message: str) -> HTTPException:
 
 
 @app.get("/api/health", response_model=HealthResponse)
+@app.get("/api/v1/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(status="ok", backendVersion=BACKEND_VERSION, engineVersion=ENGINE_VERSION, mode="SYNTHETIC_REPLAY")
 
 
 @app.get("/api/ready", response_model=ReadyResponse)
+@app.get("/api/v1/ready", response_model=ReadyResponse)
 def ready() -> ReadyResponse:
     checks = {"engine_initialized": True, "scenario_engine_ready": bool(SCENARIOS), "configuration_loaded": True, "models_ready": True, "data_providers_ready": True}
     return ReadyResponse(status="ready" if all(checks.values()) else "not_ready", checks=checks)
@@ -138,7 +140,8 @@ def analysis_domain() -> dict[str, Any]:
 
 @app.get("/api/storms")
 def storms() -> list[dict[str, Any]]:
-    return [engine.current().storm.model_dump(mode="json")]
+    snapshot = engine.current()
+    return [cell.model_dump(mode="json") for cell in (snapshot.stormCells or [snapshot.storm])]
 
 
 @app.get("/api/storms/{storm_id}")

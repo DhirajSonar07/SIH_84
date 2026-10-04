@@ -18,6 +18,58 @@ export const maharashtraBoundary = rawBoundary as unknown as MaharashtraBoundary
 export const stateFeature = maharashtraBoundary.features.find(feature => feature.properties.kind === 'state') as MaharashtraFeature;
 export const districtFeatures = maharashtraBoundary.features.filter(feature => feature.properties.kind === 'district') as MaharashtraFeature[];
 
+export const DISTRICT_SHORT_FORMS: Record<string, string> = {
+  'Pune': 'PUNE',
+  'Nagpur': 'NAG',
+  'Nashik': 'NASH',
+  'Aurangabad': 'AUR',
+  'Kolhapur': 'KOL',
+  'Solapur': 'SOL',
+  'Amravati': 'AMR',
+  'Nanded': 'NDD',
+  'Sangli': 'SAN',
+  'Satara': 'SAT',
+  'Latur': 'LAT',
+  'Jalgaon': 'JAL',
+  'Dhule': 'DHL',
+  'Akola': 'AKL',
+  'Buldhana': 'BLD',
+  'Washim': 'WSH',
+  'Yavatmal': 'YAV',
+  'Chandrapur': 'CHD',
+  'Gondia': 'GON',
+  'Bhandara': 'BND',
+  'Wardha': 'WRD',
+  'Gadchiroli': 'GAD',
+  'Raigad': 'RAI',
+  'Ratnagiri': 'RAT',
+  'Sindhudurg': 'SIN',
+  'Thane': 'THN',
+  'Mumbai': 'MUM',
+  'Mumbai Suburban': 'MUM-S',
+  'Palghar': 'PLG',
+  'Ahmednagar': 'AHM',
+  'Jalna': 'JLN',
+  'Parbhani': 'PRB',
+  'Hingoli': 'HIN',
+  'Beed': 'BED',
+  'Osmanabad': 'OSM',
+  'Nandurbar': 'NDB',
+};
+
+export function getDistrictLabel(name: string, zoom: number): string {
+  if (zoom < 6) {
+    return ''; // No labels at very low zoom
+  }
+  if (zoom < 7) {
+    return DISTRICT_SHORT_FORMS[name] || name.substring(0, 3).toUpperCase();
+  }
+  if (zoom < 8) {
+    return DISTRICT_SHORT_FORMS[name] || name;
+  }
+  return name; // Full name at higher zoom
+}
+
 function visitCoordinates(coordinates: unknown, visit: (longitude: number, latitude: number) => void) {
   if (!Array.isArray(coordinates)) return;
   if (typeof coordinates[0] === 'number' && typeof coordinates[1] === 'number') {
@@ -53,5 +105,9 @@ export const majorCities = [
 export function districtSearch(query: string) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return districtFeatures;
-  return districtFeatures.filter(feature => feature.properties.name.toLowerCase().includes(normalized));
+  return districtFeatures.filter(feature => {
+    const name = feature.properties.name.toLowerCase();
+    const shortForm = DISTRICT_SHORT_FORMS[feature.properties.name]?.toLowerCase() || '';
+    return name.includes(normalized) || shortForm.includes(normalized);
+  });
 }

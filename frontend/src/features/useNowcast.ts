@@ -9,8 +9,8 @@ export function useReplayClock() {
     const timer = window.setInterval(() => {
       const state = useScenarioStore.getState();
       if (state.minute >= 240) { useScenarioStore.setState({ playing: false }); return; }
-      actions.seek(state.minute + speed);
-    }, 1000);
+      actions.seek(state.minute + 5 * speed);
+    }, 1000 / speed);
     return () => clearInterval(timer);
   }, [playing, speed]);
 }

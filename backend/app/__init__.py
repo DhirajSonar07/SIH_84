@@ -1,0 +1,1 @@
+"""NOVEXA NOWCAST backend application."""

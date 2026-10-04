@@ -1,0 +1,24 @@
+import { useId } from 'react';
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Activity, GitBranch } from 'lucide-react';
+import { actions, useNowcastStore, useScenarioStore } from '../store';
+import { Panel, Badge, number, time } from './common';
+import type { StormHistoryPoint } from '../types/nowcast';
+const metrics: { key: 'reflectivity' | 'area' | 'lightning' | 'cooling'; label: string; unit: string; color: string }[] = [
+  { key: 'reflectivity', label: 'RADAR REFLECTIVITY PROXY', unit: 'dBZ', color: '#5fd5cd' },
+  { key: 'area', label: 'SYNTHETIC CELL AREA', unit: 'km²', color: '#e4ba72' },
+  { key: 'lightning', label: 'LIGHTNING STRIKE RATE', unit: '/min', color: '#f0c05f' },
+  { key: 'cooling', label: 'CLOUD COOLING PROXY', unit: '°C/15m', color: '#afa4e4' },
+];
+export default function StormEvolution() {
+  const history = useNowcastStore(state => state.history);
+  const observed = useNowcastStore(state => state.observedSnapshot);
+  const interventions = useScenarioStore(state => state.interventions);
+  const mode = useScenarioStore(state => state.mode);
+  const current = history[history.length - 1];
+  return <Panel title="STORM EVOLUTION / OBSERVATION HISTORY" eyebrow="SYNCHRONIZED REPLAY" action={<Badge tone="cyan">T+{number(observed.minute)} MIN</Badge>} className="storm-evolution"><div className="evolution-context"><span><Activity size={13}/>{observed.storm.id} · {time(observed.observationTime)} IST</span><span>{history.length} {mode === 'BACKEND' ? 'received snapshots' : 'generated history samples'} · 0 → T+{number(observed.minute)} min</span></div><div className="history-chart-grid">{metrics.map(metric => <HistoryChart key={metric.key} metric={metric} history={history} current={current} interventions={interventions.map(event => event.minute).filter(minute => minute <= observed.minute)} readOnly={mode === 'BACKEND'}/>)}</div><div className="evolution-state-strip"><span>State <strong>{observed.storm.state}</strong></span><span>Growth <strong>{number(observed.storm.growth,1)}%/15m</strong></span><span>Motion <strong>{observed.storm.speed} km/h</strong></span><span>Confidence <strong>{number(observed.fusion.confidence)}%</strong></span></div><p className="muted"><GitBranch size={12}/> {mode === 'BACKEND' ? 'Only received authoritative frames are retained. Historical frames are not synthesized.' : 'Five-minute synthetic samples plus intervention boundaries. Earlier inputs are preserved; dashed markers show judge interventions. Click a chart to seek, or use the accessible replay slider. Forecast horizon selection does not rewrite observation history.'}</p></Panel>;
+}
+function HistoryChart({ metric, history, current, interventions, readOnly }: { metric: typeof metrics[number]; history: StormHistoryPoint[]; current?: StormHistoryPoint; interventions: number[]; readOnly: boolean }) {
+  const gradientId = useId().replace(/:/g, '');
+  return <section className="history-chart" aria-label={`${metric.label} in ${metric.unit}; current value ${current ? number(current[metric.key],1) : 'unavailable'}`}><header><span>{metric.label}<small>{metric.unit}</small></span><strong>{current ? number(current[metric.key],1) : '—'}<small>{metric.unit}</small></strong></header><div className="history-chart-canvas"><ResponsiveContainer width="100%" height="100%"><AreaChart data={history} syncId="storm-history" margin={{ top:14, right:10, bottom:0, left:-18 }} accessibilityLayer onClick={event => { if (!readOnly && event.activeLabel != null && Number.isFinite(Number(event.activeLabel))) actions.seek(Number(event.activeLabel)); }}><defs><linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={metric.color} stopOpacity={0.22}/><stop offset="100%" stopColor={metric.color} stopOpacity={0}/></linearGradient></defs><CartesianGrid stroke="#293e4b" strokeDasharray="3 3" vertical={false}/><XAxis dataKey="minute" type="number" domain={[0, Math.max(5, current?.minute ?? 5)]} tickFormatter={value => `T+${value}`} tick={{ fontSize:9, fill:'#8fa9bd' }} tickLine={false} axisLine={false}/><YAxis domain={['auto','auto']} tick={{ fontSize:9, fill:'#8fa9bd' }} tickLine={false} axisLine={false} tickFormatter={value => number(Number(value),0)}/><Tooltip contentStyle={{ background:'#111f2b', border:'1px solid #3e5863', fontSize:10 }} labelFormatter={label => `Replay T+${label} min`} formatter={value => [`${number(Number(value),1)} ${metric.unit}`, metric.label]}/>{interventions.map(minute => <ReferenceLine key={minute} x={minute} stroke="#a4b6c4" strokeDasharray="3 4" label={{ value:'J', position:'insideTopRight', fill:'#a8bfce', fontSize:9 }}/>) }<Area type="linear" dataKey={metric.key} stroke={metric.color} strokeWidth={2} fill={`url(#${gradientId})`} isAnimationActive={false} activeDot={{ r:3 }} dot={history.length <= 2 ? { r:3 } : false}/></AreaChart></ResponsiveContainer></div></section>;
+}

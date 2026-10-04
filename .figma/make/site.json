@@ -1,0 +1,10 @@
+{
+  "description": "This web application delivers real-time convective weather intelligence, enabling disaster management and meteorological analysts to track storms, assess hazards, and make informed decisions.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}

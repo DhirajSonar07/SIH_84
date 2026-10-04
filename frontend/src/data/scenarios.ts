@@ -1,0 +1,13 @@
+import type { Scenario, ScenarioParameters } from '../types/nowcast';
+export const defaultParameters: ScenarioParameters = { intensity: 1, lightning: 1, velocity: 42, cooling: 1, noise: 0, radarQuality: 96, satelliteQuality: 94, lightningQuality: 91, confidenceThreshold: 55, warningThreshold: 65, direction: 70 };
+export const scenarios: Scenario[] = [
+  { id: 'SC-001', name: 'Severe Thunderstorm Approach', description: 'A developing cell approaches Pune from the southwest. Cooling, growth and lightning corroborate convection before peak and dissipation.', duration: 240, seed: 26084, truth: true, parameters: {} },
+  { id: 'SC-002', name: 'Rapid Convective Initiation', description: 'Stronger cloud cooling precedes rapid cell growth. Inspect initiation evidence.', duration: 240, seed: 26085, truth: true, parameters: { cooling: 1.5, intensity: 1.15 } },
+  { id: 'SC-003', name: 'Lightning Burst', description: 'A concentrated lightning burst drives electrical risk and source disagreement.', duration: 240, seed: 26086, truth: true, parameters: { lightning: 1.8 } },
+  { id: 'SC-004', name: 'Hail-Producing Cell', description: 'Intense reflectivity and cloud cooling elevate the illustrative hail index.', duration: 240, seed: 26087, truth: true, parameters: { intensity: 1.35, cooling: 1.3 } },
+  { id: 'SC-005', name: 'Cloudburst Risk Proxy', description: 'Slow motion and a broad intense cell increase the rainfall-proxy risk. No rainfall measurement is implied.', duration: 240, seed: 26088, truth: true, parameters: { velocity: 18, intensity: 1.4 } },
+  { id: 'SC-006', name: 'Weakening Storm', description: 'Diminishing corroborated signals reduce risks and resolve advisories.', duration: 240, seed: 26089, truth: false, parameters: { intensity: 0.5, lightning: 0.45, cooling: 0.45 } },
+  { id: 'SC-007', name: 'False Alarm / Unconfirmed Echo', description: 'An intense radar-only echo is not corroborated. Fusion loses confidence and the watch is withdrawn.', duration: 240, seed: 26090, truth: false, parameters: { intensity: 1.5, lightning: 0.12, cooling: 0.12, noise: 28 } },
+  { id: 'SC-008', name: 'Degraded Sources', description: 'Satellite fails and lightning is partial. Uncertainty expands and affected hazard outputs abstain.', duration: 240, seed: 26091, truth: true, parameters: { satelliteQuality: 0, lightningQuality: 35 } },
+];
+export const evolution = [{ minute: 0, value: 0.08 }, { minute: 10, value: 0.22 }, { minute: 20, value: 0.38 }, { minute: 30, value: 0.52 }, { minute: 45, value: 0.7 }, { minute: 60, value: 0.82 }, { minute: 90, value: 0.9 }, { minute: 120, value: 0.95 }, { minute: 180, value: 1 }, { minute: 240, value: 0.12 }];

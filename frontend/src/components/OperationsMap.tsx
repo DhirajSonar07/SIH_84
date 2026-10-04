@@ -9,6 +9,7 @@ import { districtFeatures, districtSearch, getDistrictLabel, majorCities, mahara
 import useNowcast from '../features/useNowcast';
 import { actions, useMapStore } from '../store';
 import type { BackendMapState } from '../types/nowcast';
+import { API_BASE_URL } from '../lib/config';
 import { number, Badge } from './common';
 import OfflineMapFallback from './OfflineMapFallback';
 
@@ -233,7 +234,7 @@ export default function OperationsMap({ tall = false }: { tall?: boolean }) {
   useEffect(() => {
     if (snapshot.mode !== 'BACKEND') { setBackendMapState(null); return; }
     const controller = new AbortController();
-    fetch('/api/v1/map/state', { signal: controller.signal, cache: 'no-store' }).then(response => response.ok ? response.json() as Promise<BackendMapState> : null).then(state => { if (state) setBackendMapState(state); }).catch(() => undefined);
+    fetch(`${API_BASE_URL}/v1/map/state`, { signal: controller.signal, cache: 'no-store' }).then(response => response.ok ? response.json() as Promise<BackendMapState> : null).then(state => { if (state) setBackendMapState(state); }).catch(() => undefined);
     return () => controller.abort();
   }, [snapshot.mode, snapshot.sequence]);
 

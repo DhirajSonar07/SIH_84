@@ -26,7 +26,14 @@ Run tests with:
 python -m pytest -q
 ```
 
-The frontend currently uses same-origin `/api` paths. For separate local processes, configure a Vite proxy or expose the backend through the same origin before selecting `BACKEND` mode.
+For a separate frontend deployment, set `CORS_ORIGINS` to the exact Vercel
+origin (comma-separated for multiple preview/custom origins), for example:
+
+```text
+CORS_ORIGINS=https://novexa-nowcast.vercel.app,https://www.example.com
+```
+
+The Vercel frontend uses `VITE_API_URL=https://novexa-backend.onrender.com/api`.
 
 The default analysis domain is the complete Maharashtra polygon, not the map viewport or Pune. Set `ANALYSIS_RESOLUTION=MEDIUM` or `FINE` to change the configured 2 km or 1 km grid resolution.
 
@@ -35,5 +42,4 @@ The default analysis domain is the complete Maharashtra polygon, not the map vie
 Shared deterministic storm truth -> replay source observations -> quality and alignment -> features -> weighted fusion -> cell detection/tracking -> motion forecast -> four hazard rules -> confidence -> alerts and trace.
 
 All output is synthetic/replay data and is labelled accordingly by the health response and source metadata.
-
 

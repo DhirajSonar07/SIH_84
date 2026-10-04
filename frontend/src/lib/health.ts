@@ -9,6 +9,8 @@ export interface HealthStatus {
   reason: string;
 }
 
+import { API_BASE_URL } from './config';
+
 export interface HealthResponse {
   status: string;
   backendVersion: string;
@@ -40,7 +42,7 @@ class HealthCheckService {
   private intervalId: ReturnType<typeof setInterval> | null = null;
   private baseUrl: string;
 
-  constructor(baseUrl: string = '/api') {
+  constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
   }
 

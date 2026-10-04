@@ -11,6 +11,7 @@ import AlertLedger from '../components/AlertLedger';
 import StormEvolution from '../components/StormEvolution';
 import RecoveryControls from '../components/RecoveryControls';
 import { Panel, Metric, Badge, number, eta, InspectButton, time } from '../components/common';
+import { API_BASE_URL } from '../lib/config';
 export function NowcastPage() { return <NowcastOverview/>; }
 function NowcastOverview() {
   const snapshot = useNowcast();
@@ -48,8 +49,8 @@ export function PerformancePage() {
   useEffect(() => {
     const controller = new AbortController();
     Promise.all([
-      fetch('/api/v1/validation', { signal: controller.signal }),
-      fetch('/api/v1/performance', { signal: controller.signal }),
+      fetch(`${API_BASE_URL}/v1/validation`, { signal: controller.signal }),
+      fetch(`${API_BASE_URL}/v1/performance`, { signal: controller.signal }),
     ]).then(async ([validationResponse, performanceResponse]) => {
       if (!validationResponse.ok || !performanceResponse.ok) return;
       setValidation(await validationResponse.json());

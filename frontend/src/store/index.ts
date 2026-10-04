@@ -7,6 +7,7 @@ import { reconcileAlerts } from '../lib/alerts';
 import { historyPoint, parametersAt, replayFrames } from '../lib/replay';
 import { healthCheckService, type HealthStatus } from '../lib/health';
 import type { AlertRecord, NowcastState, ScenarioParameters, Mode, ScenarioIntervention, StormHistoryPoint, ProviderRequest } from '../types/nowcast';
+import { API_BASE_URL } from '../lib/config';
 const replay = new LocalReplayProvider();
 const simulation = new SimulationProvider();
 const initialRequest: ProviderRequest = { scenarioId: 'SC-001', minute: 45, lead: 0, parameters: { ...defaultParameters }, initialParameters: { ...defaultParameters }, interventions: [] };
@@ -136,7 +137,7 @@ export const actions = {
     useNowcastStore.setState({ connection: 'CONNECTING TO BACKEND' });
     healthCheckService.start();
     healthUnsubscribe = healthCheckService.subscribe(status => { if (requestId === generation) useNowcastStore.setState({ healthStatus: status }); });
-    const provider = new ApiProvider('/api');
+    const provider = new ApiProvider(API_BASE_URL);
     try {
       const snapshot = await provider.getSnapshot(useScenarioStore.getState());
       if (requestId !== generation) return;

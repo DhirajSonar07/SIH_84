@@ -36,6 +36,195 @@ interface MapStore { layers: Record<string, boolean>; focus: number; selectedSto
 export const useMapStore = create<MapStore>(() => ({ layers: { Radar: true, Satellite: false, Lightning: false, Trajectory: true, Hazards: true, Grid: false, Infrastructure: false, Districts: true, Convective: true, Tracks: true, Alerts: true }, focus: 0, selectedStorm: 'CELL-001' }));
 interface UiStore { inspection: { kind: string; id: string } | null; notice: string; }
 export const useUiStore = create<UiStore>(() => ({ inspection: null, notice: '' }));
+
+export type DemoUserRole = 'SYSTEM_ADMIN' | 'METEOROLOGICAL_ANALYST' | 'VIEWER';
+
+export interface DemoUser {
+  id: string;
+  email: string;
+  name: string;
+  role: DemoUserRole;
+}
+
+export interface DemoSession {
+  isAuthenticated: true;
+  user: DemoUser;
+  sessionId: string;
+  loginTime: string;
+}
+
+export const SESSION_STORAGE_KEY = 'novexa_auth_session';
+
+export const DEMO_USERS: Record<string, { email: string; password: string; user: DemoUser }> = {
+  'admin@novexa.demo': {
+    email: 'admin@novexa.demo',
+    password: 'NOVEXA2026',
+    user: {
+      id: 'demo-admin',
+      email: 'admin@novexa.demo',
+      name: 'NOVEXA Operations',
+      role: 'SYSTEM_ADMIN',
+    },
+  },
+  'analyst@novexa.demo': {
+    email: 'analyst@novexa.demo',
+    password: 'NOVEXA2026',
+    user: {
+      id: 'demo-analyst',
+      email: 'analyst@novexa.demo',
+      name: 'Novexa Analyst',
+      role: 'METEOROLOGICAL_ANALYST',
+    },
+  },
+};
+
+export const ROLE_LABELS: Record<DemoUserRole, string> = {
+  SYSTEM_ADMIN: 'SYSTEM ADMINISTRATOR',
+  METEOROLOGICAL_ANALYST: 'METEOROLOGICAL ANALYST',
+  VIEWER: 'VIEWER',
+};
+
+export const ROLE_PERMISSIONS: Record<DemoUserRole, string[]> = {
+  SYSTEM_ADMIN: ['/', '/nowcast', '/radar', '/hazards', '/scenarios', '/performance', '/technical'],
+  METEOROLOGICAL_ANALYST: ['/', '/nowcast', '/radar', '/hazards', '/scenarios', '/performance', '/technical'],
+  VIEWER: ['/', '/nowcast', '/radar', '/hazards'],
+};
+
+export function canAccessRoute(pathname: string, role: DemoUserRole | null | undefined) {
+  const safeRole = role ?? 'VIEWER';
+  const normalized = pathname || '/';
+  const allowed = ROLE_PERMISSIONS[safeRole] ?? ROLE_PERMISSIONS.VIEWER;
+  return allowed.includes(normalized) || normalized === '/login';
+}
+
+export function getAuthLabel(role: DemoUserRole | null | undefined) {
+  return role ? ROLE_LABELS[role] : ROLE_LABELS.VIEWER;
+}
+
+interface AuthState {
+  isAuthenticated: boolean;
+  user: DemoUser | null;
+  sessionId: string | null;
+  loginTime: string | null;
+  isInitializing: boolean;
+  error: string | null;
+}
+
+export const useAuthStore = create<AuthState & {
+  login: (email: string, password: string) => Promise<DemoSession>;
+  logout: () => void;
+  restoreSession: () => DemoSession | null;
+  initializeAuth: () => Promise<void>;
+  setUser: (user: DemoUser | null) => void;
+  clearSession: () => void;
+}>((set) => ({
+  isAuthenticated: false,
+  user: null,
+  sessionId: null,
+  loginTime: null,
+  isInitializing: true,
+  error: null,
+  setUser: (user) => set({ user, isAuthenticated: Boolean(user), sessionId: user ? useAuthStore.getState().sessionId ?? 'demo-session' : null }),
+  clearSession: () => set({ isAuthenticated: false, user: null, sessionId: null, loginTime: null, error: null }),
+  restoreSession: () => {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) {
+      set({ isAuthenticated: false, user: null, sessionId: null, loginTime: null, isInitializing: false, error: null });
+      return null;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as Partial<DemoSession>;
+      const user = parsed.user;
+      const email = user?.email?.toLowerCase();
+      if (!user || !email || !user.role || !user.name || !parsed.sessionId || !parsed.loginTime) {
+        localStorage.removeItem(SESSION_STORAGE_KEY);
+        set({ isAuthenticated: false, user: null, sessionId: null, loginTime: null, isInitializing: false, error: null });
+        return null;
+      }
+
+      const session = {
+        isAuthenticated: true,
+        user: {
+          id: user.id || `demo-${email.split('@')[0]}`,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        sessionId: parsed.sessionId,
+        loginTime: parsed.loginTime,
+      } as DemoSession;
+
+      set({ isAuthenticated: true, user: session.user, sessionId: session.sessionId, loginTime: session.loginTime, isInitializing: false, error: null });
+      return session;
+    } catch {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      set({ isAuthenticated: false, user: null, sessionId: null, loginTime: null, isInitializing: false, error: null });
+      return null;
+    }
+  },
+  initializeAuth: async () => {
+    set({ isInitializing: true });
+    const session = useAuthStore.getState().restoreSession();
+    set({ isInitializing: false, isAuthenticated: Boolean(session), user: session?.user ?? null, sessionId: session?.sessionId ?? null, loginTime: session?.loginTime ?? null, error: null });
+  },
+  login: async (email, password) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPassword = password.trim();
+
+    if (!normalizedEmail || !normalizedPassword) {
+      set({ error: 'PLEASE ENTER EMAIL AND PASSWORD', isInitializing: false });
+      throw new Error('PLEASE ENTER EMAIL AND PASSWORD');
+    }
+
+    const candidate = DEMO_USERS[normalizedEmail];
+    if (!candidate || !/^\S+@\S+\.\S+$/.test(normalizedEmail) || candidate.password !== normalizedPassword) {
+      set({ error: 'INVALID CREDENTIALS', isInitializing: false });
+      throw new Error('INVALID CREDENTIALS');
+    }
+
+    const session: DemoSession = {
+      isAuthenticated: true,
+      user: candidate.user,
+      sessionId: `session-${candidate.user.id}-${Date.now()}`,
+      loginTime: new Date().toISOString(),
+    };
+
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+    set({ isAuthenticated: true, user: candidate.user, sessionId: session.sessionId, loginTime: session.loginTime, error: null, isInitializing: false });
+    return session;
+  },
+  logout: () => {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    set({ isAuthenticated: false, user: null, sessionId: null, loginTime: null, error: null, isInitializing: false });
+  },
+}));
+
+export const authStore = useAuthStore;
+
+export const authService = {
+  login: async (email: string, password: string) => useAuthStore.getState().login(email, password),
+  logout: () => { useAuthStore.getState().logout(); },
+  getSession: () => {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw) as DemoSession;
+    } catch {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    }
+  },
+  restoreSession: () => useAuthStore.getState().restoreSession(),
+  isAuthenticated: () => Boolean(useAuthStore.getState().isAuthenticated),
+  getCurrentUser: () => useAuthStore.getState().user,
+  hasRole: (role: DemoUserRole) => useAuthStore.getState().user?.role === role,
+  hasPermission: (pathname: string, role?: DemoUserRole | null) => canAccessRoute(pathname, role ?? useAuthStore.getState().user?.role ?? null),
+};
+
+export const initializeAuth = async () => {
+  await useAuthStore.getState().initializeAuth();
+};
 let generation = 0;
 let disconnect: (() => void) | undefined;
 let healthUnsubscribe: (() => void) | undefined;

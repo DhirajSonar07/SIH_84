@@ -1,13 +1,25 @@
 import { useState } from 'react';
 import { User, Settings, LogOut, X, CheckCircle, Activity, Database } from 'lucide-react';
-import { useNowcastStore, useScenarioStore, useUiStore } from '../store';
+import { useNowcastStore, useScenarioStore, useUiStore, useAuthStore, getAuthLabel } from '../store';
+import { useNavigate } from 'react-router';
 
 export default function AccountPanel() {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
   const connection = useNowcastStore(state => state.connection);
   const mode = useScenarioStore(state => state.mode);
   const healthStatus = useNowcastStore(state => state.healthStatus);
+  const user = useAuthStore(state => state.user);
+  const sessionId = useAuthStore(state => state.sessionId);
+  const loginTime = useAuthStore(state => state.loginTime);
   const notify = (message: string) => useUiStore.setState({ notice: message });
+
+  const handleLogout = () => {
+    useAuthStore.getState().logout();
+    setIsOpen(false);
+    navigate('/login', { replace: true });
+    useUiStore.setState({ notice: 'SESSION ENDED' });
+  };
 
   if (!isOpen) {
     return (
@@ -17,7 +29,7 @@ export default function AccountPanel() {
         title="Account"
         aria-label="Account"
       >
-        NX
+        {user ? user.name.slice(0, 2).toUpperCase() : 'NX'}
       </button>
     );
   }
@@ -31,8 +43,8 @@ export default function AccountPanel() {
               <User size={24} />
             </div>
             <div>
-              <strong>NOVEXA Operations</strong>
-              <span>Weather Analyst</span>
+              <strong>{user?.name ?? 'NOVEXA Operations'}</strong>
+              <span>{user ? getAuthLabel(user.role) : 'SYSTEM ADMINISTRATOR'}</span>
             </div>
           </div>
           <button onClick={() => setIsOpen(false)} aria-label="Close account panel">
@@ -45,19 +57,25 @@ export default function AccountPanel() {
           <div className="account-row">
             <Activity size={16} />
             <span>Status</span>
-            <strong className="green-text">Active</strong>
+            <strong className="green-text">AUTHENTICATED</strong>
           </div>
           <div className="account-row">
             <Database size={16} />
             <span>Environment</span>
-            <strong>Controlled / Local</strong>
+            <strong>DEMO</strong>
           </div>
           <div className="account-row">
             <CheckCircle size={16} />
-            <span>Backend</span>
-            <strong className={mode === 'BACKEND' ? 'green-text' : 'amber-text'}>
-              {mode === 'BACKEND' ? 'Connected' : 'Local Mode'}
-            </strong>
+            <span>Role</span>
+            <strong>{user ? getAuthLabel(user.role) : 'SYSTEM ADMINISTRATOR'}</strong>
+          </div>
+          <div className="account-row">
+            <span>Session</span>
+            <strong>{sessionId ? sessionId.slice(0, 12) : 'ACTIVE'}</strong>
+          </div>
+          <div className="account-row">
+            <span>Login</span>
+            <strong>{loginTime ? new Date(loginTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}</strong>
           </div>
         </div>
 
@@ -114,9 +132,9 @@ export default function AccountPanel() {
         </div>
 
         <footer>
-          <button className="account-signout" onClick={() => setIsOpen(false)}>
+          <button className="account-signout" onClick={handleLogout}>
             <LogOut size={16} />
-            <span>Sign Out</span>
+            <span>LOGOUT</span>
           </button>
         </footer>
       </div>

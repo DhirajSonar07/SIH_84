@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router';
 import { Radar, LayoutDashboard, ScanLine, Zap, FlaskConical, ChartNoAxesCombined, Network, Play, RotateCcw, ChevronDown, MapPin, CircleHelp, Bell } from 'lucide-react';
 import useNowcast, { useReplayClock } from '../features/useNowcast';
-import { actions, useScenarioStore, useNowcastStore, useUiStore } from '../store';
+import { actions, useScenarioStore, useNowcastStore, useUiStore, useAuthStore, canAccessRoute } from '../store';
 import { Badge, time } from './common';
 import InspectionDrawer from './InspectionDrawer';
 import ReplayControl from './ReplayControl';
@@ -29,6 +29,8 @@ export default function Shell() {
   const mode = useScenarioStore(state => state.mode);
   const connection = useNowcastStore(state => state.connection);
   const notice = useUiStore(state => state.notice);
+  const authUser = useAuthStore(state => state.user);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   const records = useAlerts();
   const openAlertCount = records.filter(record => isOpenAlert(record.status)).length;
   const navigate = useNavigate();
@@ -36,6 +38,19 @@ export default function Shell() {
   const showScenarioReplay = location.pathname === '/scenarios';
 
   useReplayClock();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      const redirect = `/login?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+      navigate(redirect, { replace: true });
+      return;
+    }
+
+    if (!canAccessRoute(location.pathname, authUser?.role)) {
+      navigate('/', { replace: true });
+      useUiStore.setState({ notice: 'Access denied for this role. Default operations view restored.' });
+    }
+  }, [authUser?.role, isAuthenticated, location.pathname, location.search, navigate]);
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -54,6 +69,10 @@ export default function Shell() {
     return () => window.removeEventListener('keydown', listener);
   }, [navigate]);
 
+  const visibleNavigation = navigation.filter(item => canAccessRoute(item.to, authUser?.role));
+
+  if (!isAuthenticated) return null;
+
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">Skip to command content</a>
@@ -62,7 +81,7 @@ export default function Shell() {
           <Radar size={30} />
         </NavLink>
         <div className="rail-links">
-          {navigation.map(item => {
+          {visibleNavigation.map(item => {
             const Icon = item.icon;
             return (
               <NavLink key={item.to} to={item.to} end={item.to === '/'} title={item.label} aria-label={item.label}>
